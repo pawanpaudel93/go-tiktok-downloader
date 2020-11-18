@@ -18,15 +18,15 @@ import (
 
 var headers map[string]string
 var cookies []*http.Cookie
-var httpClient *http.Client
 
 // TikTok -
 type TikTok struct {
-	URL      string
-	FilePath string
-	data     VideoData
-	UseProxy bool
-	proxy    string
+	URL        string
+	FilePath   string
+	data       VideoData
+	UseProxy   bool
+	proxy      string
+	httpClient *http.Client
 }
 
 func init() {
@@ -62,22 +62,37 @@ func generateRandomNumber() string {
 
 func saveTiktok(filepath string, resp *http.Response) error {
 	out, err := os.Create(filepath)
-	checkError(err)
+	if err != nil {
+		return err
+	}
 	defer out.Close()
 
 	// Write the body to file
 	_, err = io.Copy(out, resp.Body)
-	checkError(err)
-	return nil
+	return err
 }
 
 func (tiktok *TikTok) getProxy() {
 	resp, err := http.Get("http://pubproxy.com/api/proxy?limit=1&format=txt&type=http&level=elite&last_check=1&HTTPS=true&GET=true&USER_AGENT=true&COOKIES=true&REFERER=true&country=US")
-	checkError(err)
-	proxy, err := ioutil.ReadAll(resp.Body)
-	checkError(err)
-	fmt.Println("http://" + string(proxy))
-	tiktok.proxy = "http://" + string(proxy)
+	if err == nil {
+		proxy, _ := ioutil.ReadAll(resp.Body)
+		tiktok.proxy = "http://" + string(proxy)
+	}
+}
+
+func (tiktok *TikTok) setClient(jar *cookiejar.Jar) {
+	tiktok.httpClient = &http.Client{
+		Jar: jar,
+	}
+	if tiktok.UseProxy && tiktok.proxy != "" {
+		if proxyURL, err := url.Parse(tiktok.proxy); err == nil {
+			transport := &http.Transport{Proxy: http.ProxyURL(proxyURL)}
+			tiktok.httpClient = &http.Client{
+				Jar:       jar,
+				Transport: transport,
+			}
+		}
+	}
 }
 
 func checkError(err error) {
@@ -101,60 +116,36 @@ func (tiktok *TikTok) Download() {
 		req.Header.Set(k, v)
 	}
 	jar.SetCookies(parsedURL, cookies)
-	if tiktok.UseProxy {
-		proxyURL, err := url.Parse(tiktok.proxy)
-		checkError(err)
-		transport := &http.Transport{Proxy: http.ProxyURL(proxyURL)}
-		httpClient = &http.Client{
-			Jar:       jar,
-			Transport: transport,
-		}
-	} else {
-		httpClient = &http.Client{
-			Jar: jar,
-		}
-	}
-	resp, err := httpClient.Do(req)
-	checkError(err)
-
-	VideoData := VideoData{}
-	fmt.Println(resp)
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
-	checkError(err)
-	doc.Find("#__NEXT_DATA__").Each(func(i int, s *goquery.Selection) {
-		err := json.Unmarshal([]byte(s.Text()), &VideoData)
-		tiktok.data = VideoData
-		checkError(err)
-	})
-	URL := VideoData.Video.URL
-	if err != nil {
+	tiktok.setClient(jar)
+	if resp, err := tiktok.httpClient.Do(req); err != nil {
 		fmt.Println(err)
-	}
-	req, err = http.NewRequest("GET", URL, nil)
-	checkError(err)
-	parsedURL, _ = url.Parse(URL)
-
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-	jar.SetCookies(parsedURL, cookies)
-	if tiktok.UseProxy {
-		proxyURL, err := url.Parse(tiktok.proxy)
-		checkError(err)
-		transport := &http.Transport{Proxy: http.ProxyURL(proxyURL)}
-		httpClient = &http.Client{
-			Jar:       jar,
-			Transport: transport,
-		}
 	} else {
-		httpClient = &http.Client{
-			Jar: jar,
+		VideoData := VideoData{}
+		doc, err := goquery.NewDocumentFromReader(resp.Body)
+		checkError(err)
+		doc.Find("#__NEXT_DATA__").Each(func(i int, s *goquery.Selection) {
+			err := json.Unmarshal([]byte(s.Text()), &VideoData)
+			tiktok.data = VideoData
+			checkError(err)
+		})
+		URL := VideoData.Video.URL
+		if err != nil {
+			fmt.Println(err)
 		}
+		req, err = http.NewRequest("GET", URL, nil)
+		checkError(err)
+		parsedURL, _ = url.Parse(URL)
+
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+		jar.SetCookies(parsedURL, cookies)
+		tiktok.setClient(jar)
+		resp, err = tiktok.httpClient.Do(req)
+		checkError(err)
+		err = saveTiktok(tiktok.FilePath, resp)
+		checkError(err)
 	}
-	resp, err = httpClient.Do(req)
-	checkError(err)
-	err = saveTiktok(tiktok.FilePath, resp)
-	checkError(err)
 }
 
 // GetTiktokInfo -
