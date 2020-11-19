@@ -1,48 +1,39 @@
 package downloader
 
-type Video struct {
-	URL string `json:"playAddr"`
+import (
+	"fmt"
+	"io"
+	"math/rand"
+	"net/http"
+	"os"
+	"strconv"
+	"strings"
+)
+
+func generateRandomNumber() string {
+	max := 1999999999999999999
+	min := 1000000000000000000
+	return strconv.Itoa(min + rand.Intn(max-min))
 }
 
-type Author struct {
-	UniqueID string `json:"uniqueId"`
-	Nickname string `json:"nickname"`
-}
-type VideoStats struct {
-	Likes    int `json:"diggCount"`
-	Shares   int `json:"shareCount"`
-	Comments int `json:"commentCount"`
-	Played   int `json:"playCount"`
+func replaceUnicode(URL string) string {
+	return strings.ReplaceAll(URL, "\u0026", "&")
 }
 
-type AuthorStats struct {
-	Followings int `json:"followingCount"`
-	Followers  int `json:"followerCount"`
-	Hearts     int `json:"heartCount"`
-	Videos     int `json:"videoCount"`
+func checkError(err error) {
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
-type ItemStruct struct {
-	Video       `json:"video"`
-	Author      `json:"author"`
-	CreatedTime int    `json:"createTime"`
-	Description string `json:"desc"`
-	VideoStats  `json:"stats"`
-	AuthorStats `json:"authorStats"`
-}
+func saveTiktok(filepath string, resp *http.Response) error {
+	out, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
 
-type ItemInfo struct {
-	ItemStruct `json:"itemStruct"`
-}
-
-type PageProps struct {
-	ItemInfo `json:"itemInfo"`
-}
-
-type Props struct {
-	PageProps `json:"pageProps"`
-}
-
-type VideoData struct {
-	Props `json:"props"`
+	// Write the body to file
+	_, err = io.Copy(out, resp.Body)
+	return err
 }
