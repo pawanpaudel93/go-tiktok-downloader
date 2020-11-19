@@ -1,8 +1,8 @@
-package downloader
+package tiktok
 
-type Video struct {
+type VideoInfo struct {
 	URL   string `json:"playAddr"`
-	cover string `json:"dynamicCover"`
+	Cover string `json:"dynamicCover"`
 }
 
 type Author struct {
@@ -15,6 +15,8 @@ type Author struct {
 	Signature    string `json:"signature"`
 	Verified     bool   `json:"verified"`
 }
+
+type User Author
 
 type VideoStats struct {
 	Likes    int `json:"diggCount"`
@@ -30,8 +32,11 @@ type AuthorStats struct {
 	Videos     int `json:"videoCount"`
 }
 
+type UserStats AuthorStats
+
 type ItemStruct struct {
-	Video       `json:"video"`
+	Video       VideoInfo `json:"video"`
+	VideoID     string    `json:"id"`
 	Author      `json:"author"`
 	CreatedTime int    `json:"createTime"`
 	Description string `json:"desc"`
@@ -45,14 +50,14 @@ type ItemInfo struct {
 
 type UserMetaParams struct {
 	Title       string `json:"title"`
-	keywords    string `json:"keywords"`
-	description string `json:"description"`
+	Keywords    string `json:"keywords"`
+	Description string `json:"description"`
 	URL         string `json:"canonicalHref"`
 }
 
 type UserInfo struct {
-	Author      `json:"user"`
-	AuthorStats `json:"stats"`
+	User      `json:"user"`
+	UserStats `json:"stats"`
 }
 
 type PageProps struct {

@@ -1,7 +1,6 @@
-package downloader
+package tiktok
 
 import (
-	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
@@ -18,12 +17,6 @@ func generateRandomNumber() string {
 
 func replaceUnicode(URL string) string {
 	return strings.ReplaceAll(URL, "\u0026", "&")
-}
-
-func checkError(err error) {
-	if err != nil {
-		fmt.Println(err)
-	}
 }
 
 func saveTiktok(filepath string, resp *http.Response) error {
