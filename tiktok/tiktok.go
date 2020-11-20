@@ -161,7 +161,7 @@ func (video *Video) FetchInfo() error {
 		return err
 	}
 	doc.Find("#__NEXT_DATA__").Each(func(i int, s *goquery.Selection) {
-		_ = json.Unmarshal([]byte(s.Text()), &VideoData)
+		err = json.Unmarshal([]byte(s.Text()), &VideoData)
 		video.data = VideoData
 	})
 	return err
@@ -189,11 +189,7 @@ func (video *Video) GetInfo() (string, error) {
 			"videos":    video.data.AuthorStats.Videos,
 		},
 	}
-
 	data, err := json.Marshal(tiktokData)
-	if err != nil {
-		return "", err
-	}
 	return string(data), err
 }
 
@@ -225,7 +221,7 @@ func (profile *Profile) FetchInfo() error {
 		return err
 	}
 	doc.Find("#__NEXT_DATA__").Each(func(i int, s *goquery.Selection) {
-		_ = json.Unmarshal([]byte(s.Text()), &VideoData)
+		err = json.Unmarshal([]byte(s.Text()), &VideoData)
 		profile.data = VideoData.Props.PageProps
 	})
 	return err
@@ -239,9 +235,6 @@ func (profile *Profile) GetPPInfo() (string, error) {
 		"Larger":   replaceUnicode(profile.data.AvatarLarger),
 	}
 	data, err := json.Marshal(photoData)
-	if err != nil {
-		return "", err
-	}
 	return string(data), err
 }
 
@@ -253,9 +246,6 @@ func (profile *Profile) GetProfileInfo() (string, error) {
 		"userMetaStats": profile.data.UserMetaParams,
 	}
 	data, err := json.Marshal(profileData)
-	if err != nil {
-		return "", err
-	}
 	return string(data), err
 }
 
