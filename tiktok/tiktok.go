@@ -133,9 +133,8 @@ func (video *Video) Download() error {
 	return err
 }
 
-// GetVideoInfo - Get Tiktok video Information.
-func (video *Video) GetVideoInfo() (string, error) {
-	var tiktokData map[string]interface{}
+// FetchInfo - Get Tiktok video Information.
+func (video *Video) FetchInfo() error {
 	jar, _ := cookiejar.New(nil)
 	videoURL := video.URL
 	if video.UseProxy {
@@ -144,7 +143,7 @@ func (video *Video) GetVideoInfo() (string, error) {
 
 	req, err := http.NewRequest("GET", videoURL, nil)
 	if err != nil {
-		return "", err
+		return err
 	}
 	parsedURL, _ := url.Parse(videoURL)
 	for k, v := range headers {
@@ -154,19 +153,23 @@ func (video *Video) GetVideoInfo() (string, error) {
 	video.setClient(jar)
 	resp, err := video.httpClient.Do(req)
 	if err != nil {
-		return "", err
+		return err
 	}
 	VideoData := VideoData{}
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
-		return "", err
+		return err
 	}
 	doc.Find("#__NEXT_DATA__").Each(func(i int, s *goquery.Selection) {
 		_ = json.Unmarshal([]byte(s.Text()), &VideoData)
 		video.data = VideoData
 	})
+	return err
+}
 
-	tiktokData = map[string]interface{}{
+// GetInfo returns Tiktok video information
+func (video *Video) GetInfo() (string, error) {
+	tiktokData := map[string]interface{}{
 		"video": map[string]interface{}{
 			"URL":         video.URL,
 			"likes":       video.data.Likes,
@@ -194,8 +197,8 @@ func (video *Video) GetVideoInfo() (string, error) {
 	return string(data), err
 }
 
-// GetProfileInfo - Get Tiktok Profile information.
-func (profile *Profile) GetProfileInfo() (string, error) {
+// FetchInfo - Get Tiktok Profile information.
+func (profile *Profile) FetchInfo() error {
 	jar, _ := cookiejar.New(nil)
 	profileURL := profile.URL
 	if profile.UseProxy {
@@ -204,7 +207,7 @@ func (profile *Profile) GetProfileInfo() (string, error) {
 
 	req, err := http.NewRequest("GET", profileURL, nil)
 	if err != nil {
-		return "", err
+		return err
 	}
 	parsedURL, _ := url.Parse(profileURL)
 	for k, v := range headers {
@@ -214,23 +217,42 @@ func (profile *Profile) GetProfileInfo() (string, error) {
 	profile.setClient(jar)
 	resp, err := profile.httpClient.Do(req)
 	if err != nil {
-		return "", err
+		return err
 	}
 	VideoData := VideoData{}
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
-		return "", err
+		return err
 	}
 	doc.Find("#__NEXT_DATA__").Each(func(i int, s *goquery.Selection) {
 		_ = json.Unmarshal([]byte(s.Text()), &VideoData)
 		profile.data = VideoData.Props.PageProps
 	})
+	return err
+}
+
+// GetPPInfo returns Tiktok profile picture information.
+func (profile *Profile) GetPPInfo() (string, error) {
 	photoData := map[string]string{
 		"Thumnail": replaceUnicode(profile.data.AvatarThumb),
 		"Medium":   replaceUnicode(profile.data.AvatarMedium),
 		"Larger":   replaceUnicode(profile.data.AvatarLarger),
 	}
 	data, err := json.Marshal(photoData)
+	if err != nil {
+		return "", err
+	}
+	return string(data), err
+}
+
+// GetProfileInfo returns Tiktok profile information.
+func (profile *Profile) GetProfileInfo() (string, error) {
+	profileData := map[string]interface{}{
+		"user":          profile.data.User,
+		"userStats":     profile.data.UserStats,
+		"userMetaStats": profile.data.UserMetaParams,
+	}
+	data, err := json.Marshal(profileData)
 	if err != nil {
 		return "", err
 	}
