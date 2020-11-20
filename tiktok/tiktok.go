@@ -110,13 +110,13 @@ func (profile *Profile) setClient(jar *cookiejar.Jar) {
 }
 
 // Download - Download Tiktok video
-func (video *Video) Download() error {
+func (video *Video) Download() (string, error) {
 	jar, _ := cookiejar.New(nil)
 	video.filePath = path.Join(video.BaseDIR, video.data.Author.UniqueID+"_"+video.data.ItemStruct.VideoID+".mp4")
 	URL := video.data.Video.URL
 	req, err := http.NewRequest("GET", URL, nil)
 	if err != nil {
-		return err
+		return "", err
 	}
 	parsedURL, _ := url.Parse(URL)
 
@@ -127,10 +127,13 @@ func (video *Video) Download() error {
 	video.setClient(jar)
 	resp, err := video.httpClient.Do(req)
 	if err != nil {
-		return err
+		return "", err
 	}
 	err = saveTiktok(video.filePath, resp)
-	return err
+	if err != nil {
+		return "", err
+	}
+	return video.filePath, err
 }
 
 // FetchInfo - Get Tiktok video Information.
@@ -250,7 +253,7 @@ func (profile *Profile) GetProfileInfo() (string, error) {
 }
 
 // DownloadPhoto - Download Tiktok Profile Picture.
-func (profile *Profile) DownloadPhoto(PhotoType string) error {
+func (profile *Profile) DownloadPhoto(PhotoType string) (string, error) {
 	var photoURL string
 	jar, _ := cookiejar.New(nil)
 	switch PhotoType {
@@ -267,11 +270,11 @@ func (profile *Profile) DownloadPhoto(PhotoType string) error {
 	profile.filePath = path.Join(profile.BaseDIR, profile.filePath)
 	parsedURL, err := url.Parse(photoURL)
 	if err != nil {
-		return err
+		return "", err
 	}
 	req, err := http.NewRequest("GET", photoURL, nil)
 	if err != nil {
-		return err
+		return "", err
 	}
 	for k, v := range headers {
 		req.Header.Set(k, v)
@@ -280,8 +283,11 @@ func (profile *Profile) DownloadPhoto(PhotoType string) error {
 	profile.setClient(jar)
 	resp, err := profile.httpClient.Do(req)
 	if err != nil {
-		return err
+		return "", err
 	}
 	err = saveTiktok(profile.filePath, resp)
-	return err
+	if err != nil {
+		return "", err
+	}
+	return profile.filePath, err
 }

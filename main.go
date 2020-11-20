@@ -17,7 +17,7 @@ func main() {
 	video := tiktok.Video{URL: "https://www.tiktok.com/@manjuxettri07/video/6886732628280593666", UseProxy: false, BaseDIR: baseDIR}
 	err := video.FetchInfo()
 	if err == nil {
-		err = video.Download()
+		_, err = video.Download()
 		if err == nil {
 			fmt.Println("Video Downloaded Successfully!!!")
 		} else {
@@ -31,7 +31,7 @@ func main() {
 	profile := tiktok.Profile{URL: "https://www.tiktok.com/@manjuxettri07", UseProxy: false, BaseDIR: baseDIR}
 	err = profile.FetchInfo()
 	if err == nil {
-		err = profile.DownloadPhoto("large")
+		_, err = profile.DownloadPhoto("large")
 		if err == nil {
 			fmt.Println("Profile Image Downloaded Successfully!!!")
 		} else {
