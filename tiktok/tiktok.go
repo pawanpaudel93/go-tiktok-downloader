@@ -174,6 +174,7 @@ func (video *Video) FetchInfo() error {
 func (video *Video) GetInfo() (string, error) {
 	tiktokData := map[string]interface{}{
 		"video": map[string]interface{}{
+			"ID":          video.data.ItemStruct.VideoID,
 			"URL":         video.URL,
 			"likes":       video.data.Likes,
 			"shares":      video.data.Shares,
@@ -181,6 +182,7 @@ func (video *Video) GetInfo() (string, error) {
 			"played":      video.data.Played,
 			"createdTime": video.data.CreatedTime,
 			"description": video.data.Description,
+			"cover":       video.data.ItemStruct.Video.Cover,
 		},
 		"author": map[string]interface{}{
 			"uniqueID":  video.data.Author.UniqueID,
