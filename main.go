@@ -14,7 +14,7 @@ func logError(err error) {
 
 func main() {
 	baseDIR := "./downloads"
-	video := tiktok.Video{URL: "https://www.tiktok.com/@manjuxettri07/video/6886732628280593666", UseProxy: false, BaseDIR: baseDIR}
+	video := tiktok.Video{URL: "https://www.tiktok.com/@manjuxettri07/video/6886732628280593666", BaseDIR: baseDIR}
 	err := video.FetchInfo()
 	if err == nil {
 		_, err = video.Download()
@@ -24,11 +24,10 @@ func main() {
 			logError(err)
 		}
 	} else {
-		fmt.Println("error")
 		logError(err)
 	}
 
-	profile := tiktok.Profile{URL: "https://www.tiktok.com/@manjuxettri07", UseProxy: false, BaseDIR: baseDIR}
+	profile := tiktok.Profile{URL: "https://www.tiktok.com/@manjuxettri07", BaseDIR: baseDIR}
 	err = profile.FetchInfo()
 	if err == nil {
 		_, err = profile.DownloadPhoto("large")

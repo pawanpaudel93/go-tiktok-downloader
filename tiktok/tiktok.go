@@ -2,12 +2,13 @@ package tiktok
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"fmt"
 	"math/rand"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
 	"path"
+	"strings"
 	"time"
 
 	goquery "github.com/PuerkitoBio/goquery"
@@ -22,8 +23,7 @@ type Profile struct {
 	filePath   string
 	data       PageProps
 	httpClient *http.Client
-	UseProxy   bool
-	proxy      string
+	Proxy      string
 	BaseDIR    string
 }
 
@@ -32,8 +32,7 @@ type Video struct {
 	URL        string
 	filePath   string
 	data       VideoData
-	UseProxy   bool
-	proxy      string
+	Proxy      string
 	httpClient *http.Client
 	BaseDIR    string
 }
@@ -64,10 +63,8 @@ func init() {
 }
 
 func (video *Video) setProxy() {
-	resp, err := http.Get("http://pubproxy.com/api/proxy?limit=1&format=txt&type=http&level=elite&last_check=1&HTTPS=true&GET=true&USER_AGENT=true&COOKIES=true&REFERER=true&country=US")
-	if err == nil {
-		proxy, _ := ioutil.ReadAll(resp.Body)
-		video.proxy = "http://" + string(proxy)
+	if !(strings.Contains(video.Proxy, "http://") || strings.Contains(video.Proxy, "https://")) {
+		video.Proxy = "http://" + string(video.Proxy)
 	}
 }
 
@@ -75,22 +72,23 @@ func (video *Video) setClient(jar *cookiejar.Jar) {
 	video.httpClient = &http.Client{
 		Jar: jar,
 	}
-	if video.UseProxy && video.proxy != "" {
-		if proxyURL, err := url.Parse(video.proxy); err == nil {
+	if video.Proxy != "" {
+		if proxyURL, err := url.Parse(video.Proxy); err == nil {
 			transport := &http.Transport{Proxy: http.ProxyURL(proxyURL)}
 			video.httpClient = &http.Client{
 				Jar:       jar,
 				Transport: transport,
 			}
+		} else {
+			fmt.Println(err)
+			fmt.Println("Not Using Proxy")
 		}
 	}
 }
 
 func (profile *Profile) setProxy() {
-	resp, err := http.Get("http://pubproxy.com/api/proxy?limit=1&format=txt&type=http&level=elite&last_check=1&HTTPS=true&GET=true&USER_AGENT=true&COOKIES=true&REFERER=true&country=US")
-	if err == nil {
-		proxy, _ := ioutil.ReadAll(resp.Body)
-		profile.proxy = "http://" + string(proxy)
+	if !(strings.Contains(profile.Proxy, "http://") || strings.Contains(profile.Proxy, "https://")) {
+		profile.Proxy = "http://" + string(profile.Proxy)
 	}
 }
 
@@ -98,13 +96,16 @@ func (profile *Profile) setClient(jar *cookiejar.Jar) {
 	profile.httpClient = &http.Client{
 		Jar: jar,
 	}
-	if profile.UseProxy && profile.proxy != "" {
-		if proxyURL, err := url.Parse(profile.proxy); err == nil {
+	if profile.Proxy != "" {
+		if proxyURL, err := url.Parse(profile.Proxy); err == nil {
 			transport := &http.Transport{Proxy: http.ProxyURL(proxyURL)}
 			profile.httpClient = &http.Client{
 				Jar:       jar,
 				Transport: transport,
 			}
+		} else {
+			fmt.Println(err)
+			fmt.Println("Not Using Proxy")
 		}
 	}
 }
@@ -140,7 +141,7 @@ func (video *Video) Download() (string, error) {
 func (video *Video) FetchInfo() error {
 	jar, _ := cookiejar.New(nil)
 	videoURL := video.URL
-	if video.UseProxy {
+	if video.Proxy != "" {
 		video.setProxy()
 	}
 
@@ -202,7 +203,7 @@ func (video *Video) GetInfo() (string, error) {
 func (profile *Profile) FetchInfo() error {
 	jar, _ := cookiejar.New(nil)
 	profileURL := profile.URL
-	if profile.UseProxy {
+	if profile.Proxy != "" {
 		profile.setProxy()
 	}
 
