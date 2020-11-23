@@ -236,9 +236,9 @@ func (profile *Profile) FetchInfo() error {
 // GetPPInfo returns Tiktok profile picture information.
 func (profile *Profile) GetPPInfo() (string, error) {
 	photoData := map[string]string{
-		"Thumnail": replaceUnicode(profile.data.AvatarThumb),
-		"Medium":   replaceUnicode(profile.data.AvatarMedium),
-		"Larger":   replaceUnicode(profile.data.AvatarLarger),
+		"Thumbnail": replaceUnicode(profile.data.AvatarThumb),
+		"Medium":    replaceUnicode(profile.data.AvatarMedium),
+		"Larger":    replaceUnicode(profile.data.AvatarLarger),
 	}
 	data, err := json.Marshal(photoData)
 	return string(data), err
