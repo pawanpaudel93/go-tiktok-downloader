@@ -5,6 +5,8 @@
 
 > A go package to download tiktok videos and profile pictures. 
 
+Also, Checkout the TikTok downloader webapp [govue-tiktok-downloader](https://github.com/pawanpaudel93/govue-tiktok-downloader)
+
 ### 🏠 [Homepage](https://github.com/pawanpaudel93/go-tiktok-downloader)
 
 ## Install
