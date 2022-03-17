@@ -8,6 +8,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"path"
+	"regexp"
 	"strings"
 	"time"
 
@@ -16,26 +17,6 @@ import (
 
 var headers map[string]string
 var cookies []*http.Cookie
-
-// Profile - Tiktok Profile
-type Profile struct {
-	URL        string
-	filePath   string
-	data       PageProps
-	httpClient *http.Client
-	Proxy      string
-	BaseDIR    string
-}
-
-// Video - Tiktok Video
-type Video struct {
-	URL        string
-	filePath   string
-	data       VideoData
-	Proxy      string
-	httpClient *http.Client
-	BaseDIR    string
-}
 
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
@@ -113,8 +94,10 @@ func (profile *Profile) setClient(jar *cookiejar.Jar) {
 // Download - Download Tiktok video
 func (video *Video) Download() (string, error) {
 	jar, _ := cookiejar.New(nil)
-	video.filePath = path.Join(video.BaseDIR, video.data.Author.UniqueID+"_"+video.data.ItemStruct.VideoID+".mp4")
-	URL := video.data.Video.URL
+	URL := video.data.Props.ProfileData.ItemInfo.ItemStruct.Video.URL
+	if URL == "" {
+		URL = video.dataV2.ItemModule.Item.Video.PlayAddr
+	}
 	req, err := http.NewRequest("GET", URL, nil)
 	if err != nil {
 		return "", err
@@ -144,7 +127,10 @@ func (video *Video) FetchInfo() error {
 	if video.Proxy != "" {
 		video.setProxy()
 	}
-
+	regex := regexp.MustCompile(`(?m)tiktok\.com\/@([\w.-]+)\/video\/(\d+)/?`)
+	regexResult := regex.FindStringSubmatch(videoURL)
+	username, videoId := regexResult[1], regexResult[2]
+	video.filePath = path.Join(video.BaseDIR, username+"_"+videoId+".mp4")
 	req, err := http.NewRequest("GET", videoURL, nil)
 	if err != nil {
 		return err
@@ -160,6 +146,7 @@ func (video *Video) FetchInfo() error {
 		return err
 	}
 	VideoData := VideoData{}
+	VideoDataV2 := VideoDataV2{}
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
 		return err
@@ -168,32 +155,66 @@ func (video *Video) FetchInfo() error {
 		err = json.Unmarshal([]byte(s.Text()), &VideoData)
 		video.data = VideoData
 	})
+	doc.Find("#sigi-persisted-data").Each(func(i int, s *goquery.Selection) {
+		data := strings.Replace(s.Text(), "window['SIGI_STATE']=", "", -1)
+		data = strings.Replace(data, fmt.Sprintf("\"%s\":", videoId), "\"item\":", -1)
+		data = strings.Replace(data, fmt.Sprintf("\"%s\":", username), "\"user\":", -1)
+		err = json.Unmarshal([]byte(strings.Split(data, ";window['SIGI_RETRY']")[0]), &VideoDataV2)
+		video.dataV2 = VideoDataV2
+	})
+
 	return err
 }
 
 // GetInfo returns Tiktok video information
 func (video *Video) GetInfo() (string, error) {
-	tiktokData := map[string]interface{}{
-		"video": map[string]interface{}{
-			"ID":          video.data.ItemStruct.VideoID,
-			"URL":         video.URL,
-			"likes":       video.data.Likes,
-			"shares":      video.data.Shares,
-			"comments":    video.data.Comments,
-			"played":      video.data.Played,
-			"createdTime": video.data.CreatedTime,
-			"description": video.data.Description,
-			"cover":       video.data.ItemStruct.Video.Cover,
-		},
-		"author": map[string]interface{}{
-			"uniqueID":  video.data.Author.UniqueID,
-			"nickname":  video.data.Author.Nickname,
-			"url":       "https://tiktok.com/@" + video.data.Author.UniqueID,
-			"followers": video.data.AuthorStats.Followers,
-			"following": video.data.AuthorStats.Followings,
-			"hearts":    video.data.AuthorStats.Hearts,
-			"videos":    video.data.AuthorStats.Videos,
-		},
+	var tiktokData map[string]interface{}
+	if video.data.Props.ProfileData.ItemInfo.ItemStruct.Video.URL != "" {
+		tiktokData = map[string]interface{}{
+			"video": map[string]interface{}{
+				"ID":          video.data.Props.ProfileData.ItemInfo.ItemStruct.VideoID,
+				"URL":         video.URL,
+				"likes":       video.data.Props.ProfileData.ItemInfo.ItemStruct.VideoStats.Likes,
+				"shares":      video.data.Props.ProfileData.ItemInfo.ItemStruct.VideoStats.Shares,
+				"comments":    video.data.Props.ProfileData.ItemInfo.ItemStruct.VideoStats.Comments,
+				"played":      video.data.Props.ProfileData.ItemInfo.ItemStruct.VideoStats.Played,
+				"createdTime": video.data.Props.ProfileData.ItemInfo.ItemStruct.CreatedTime,
+				"description": video.data.Props.ProfileData.ItemInfo.ItemStruct.Description,
+				"cover":       video.data.Props.ProfileData.ItemInfo.ItemStruct.Video.Cover,
+			},
+			"author": map[string]interface{}{
+				"uniqueID":  video.data.Props.ProfileData.ItemInfo.ItemStruct.Author.UniqueID,
+				"nickname":  video.data.Props.ProfileData.ItemInfo.ItemStruct.Author.Nickname,
+				"url":       "https://tiktok.com/@" + video.data.Props.ProfileData.ItemInfo.ItemStruct.Author.UniqueID,
+				"followers": video.data.Props.ProfileData.ItemInfo.ItemStruct.AuthorStats.Followers,
+				"following": video.data.Props.ProfileData.ItemInfo.ItemStruct.AuthorStats.Followings,
+				"hearts":    video.data.Props.ProfileData.ItemInfo.ItemStruct.AuthorStats.Hearts,
+				"videos":    video.data.Props.ProfileData.ItemInfo.ItemStruct.AuthorStats.Videos,
+			},
+		}
+	} else {
+		tiktokData = map[string]interface{}{
+			"video": map[string]interface{}{
+				"ID":          video.dataV2.ItemModule.Item.Video.ID,
+				"URL":         video.URL,
+				"likes":       video.dataV2.ItemModule.Item.Stats.DiggCount,
+				"shares":      video.dataV2.ItemModule.Item.Stats.ShareCount,
+				"comments":    video.dataV2.ItemModule.Item.Stats.CommentCount,
+				"played":      video.dataV2.ItemModule.Item.Stats.PlayCount,
+				"createdTime": video.dataV2.ItemModule.Item.CreateTime,
+				"description": video.dataV2.ItemModule.Item.Desc,
+				"cover":       video.dataV2.ItemModule.Item.Video.Cover,
+			},
+			"author": map[string]interface{}{
+				"uniqueID":  video.dataV2.ItemModule.Item.AuthorID,
+				"nickname":  video.dataV2.ItemModule.Item.Nickname,
+				"url":       "https://tiktok.com/@" + video.dataV2.ItemModule.Item.AuthorID,
+				"followers": video.dataV2.ItemModule.Item.AuthorStats.FollowerCount,
+				"following": video.dataV2.ItemModule.Item.AuthorStats.FollowingCount,
+				"hearts":    video.dataV2.ItemModule.Item.AuthorStats.HeartCount,
+				"videos":    video.dataV2.ItemModule.Item.AuthorStats.VideoCount,
+			},
+		}
 	}
 	data, err := json.Marshal(tiktokData)
 	return string(data), err
@@ -206,7 +227,9 @@ func (profile *Profile) FetchInfo() error {
 	if profile.Proxy != "" {
 		profile.setProxy()
 	}
-
+	regex := regexp.MustCompile(`(?m)tiktok\.com\/@([\w.-]+)\/?`)
+	regexResult := regex.FindStringSubmatch(profileURL)
+	username := regexResult[1]
 	req, err := http.NewRequest("GET", profileURL, nil)
 	if err != nil {
 		return err
@@ -222,23 +245,39 @@ func (profile *Profile) FetchInfo() error {
 		return err
 	}
 	VideoData := VideoData{}
+	profileDataV2 := ProfileDataV2{}
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
 		return err
 	}
 	doc.Find("#__NEXT_DATA__").Each(func(i int, s *goquery.Selection) {
 		err = json.Unmarshal([]byte(s.Text()), &VideoData)
-		profile.data = VideoData.Props.PageProps
+		profile.data = VideoData.Props.ProfileData
+	})
+	doc.Find("#sigi-persisted-data").Each(func(i int, s *goquery.Selection) {
+		data := strings.Replace(s.Text(), "window['SIGI_STATE']=", "", -1)
+		data = strings.Replace(data, fmt.Sprintf("\"%s\":", username), "\"user\":", -1)
+		err = json.Unmarshal([]byte(strings.Split(data, ";window['SIGI_RETRY']")[0]), &profileDataV2)
+		profile.dataV2 = profileDataV2
 	})
 	return err
 }
 
 // GetPPInfo returns Tiktok profile picture information.
 func (profile *Profile) GetPPInfo() (string, error) {
-	photoData := map[string]string{
-		"Thumbnail": replaceUnicode(profile.data.AvatarThumb),
-		"Medium":    replaceUnicode(profile.data.AvatarMedium),
-		"Larger":    replaceUnicode(profile.data.AvatarLarger),
+	var photoData map[string]string
+	if profile.data.UserInfo.User.ID != "" {
+		photoData = map[string]string{
+			"Thumbnail": replaceUnicode(profile.data.ItemInfo.ItemStruct.Author.AvatarThumb),
+			"Medium":    replaceUnicode(profile.data.ItemInfo.ItemStruct.Author.AvatarMedium),
+			"Larger":    replaceUnicode(profile.data.ItemInfo.ItemStruct.Author.AvatarLarger),
+		}
+	} else {
+		photoData = map[string]string{
+			"Thumbnail": replaceUnicode(profile.dataV2.UserModule.Users.User.AvatarThumb),
+			"Medium":    replaceUnicode(profile.dataV2.UserModule.Users.User.AvatarMedium),
+			"Larger":    replaceUnicode(profile.dataV2.UserModule.Users.User.AvatarLarger),
+		}
 	}
 	data, err := json.Marshal(photoData)
 	return string(data), err
@@ -246,10 +285,24 @@ func (profile *Profile) GetPPInfo() (string, error) {
 
 // GetProfileInfo returns Tiktok profile information.
 func (profile *Profile) GetProfileInfo() (string, error) {
-	profileData := map[string]interface{}{
-		"user":          profile.data.User,
-		"userStats":     profile.data.UserStats,
-		"userMetaStats": profile.data.UserMetaParams,
+	var profileData map[string]interface{}
+	if profile.data.UserInfo.User.ID != "" {
+		profileData = map[string]interface{}{
+			"user":          profile.data.UserInfo.User,
+			"userStats":     profile.data.UserInfo.UserStats,
+			"userMetaStats": profile.data.UserMetaParams,
+		}
+	} else {
+		profileData = map[string]interface{}{
+			"user":      profile.dataV2.UserModule.Users.User,
+			"userStats": profile.dataV2.UserModule.Stats.User,
+			"userMetaStats": map[string]interface{}{
+				"title":         profile.dataV2.SEO.MetaParams.Title,
+				"keywords":      profile.dataV2.SEO.MetaParams.Keywords,
+				"description":   profile.dataV2.SEO.MetaParams.Description,
+				"canonicalHref": profile.dataV2.SEO.MetaParams.CanonicalHref,
+			},
+		}
 	}
 	data, err := json.Marshal(profileData)
 	return string(data), err
@@ -261,14 +314,27 @@ func (profile *Profile) DownloadPhoto(PhotoType string) (string, error) {
 	jar, _ := cookiejar.New(nil)
 	switch PhotoType {
 	case "thumbnail":
-		photoURL = profile.data.AvatarThumb
-		profile.filePath = profile.data.UserInfo.UniqueID + "_thumbnail.jpg"
+		photoURL = profile.data.ItemInfo.ItemStruct.Author.AvatarThumb
+		profile.filePath = profile.data.UserInfo.User.UniqueID + "_thumbnail.jpg"
+		if photoURL == "" {
+			photoURL = profile.dataV2.UserModule.Users.User.AvatarThumb
+			profile.filePath = profile.dataV2.UserModule.Users.User.UniqueID + "_thumbnail.jpg"
+		}
 	case "medium":
-		photoURL = profile.data.AvatarMedium
-		profile.filePath = profile.data.UserInfo.UniqueID + "_medium.jpg"
+		photoURL = profile.data.ItemInfo.ItemStruct.Author.AvatarMedium
+		profile.filePath = profile.data.UserInfo.User.UniqueID + "_medium.jpg"
+		if photoURL == "" {
+			photoURL = profile.dataV2.UserModule.Users.User.AvatarMedium
+			profile.filePath = profile.dataV2.UserModule.Users.User.UniqueID + "_medium.jpg"
+		}
+
 	default:
-		photoURL = profile.data.AvatarLarger
-		profile.filePath = profile.data.UserInfo.UniqueID + "_large.jpg"
+		photoURL = profile.data.ItemInfo.ItemStruct.Author.AvatarLarger
+		profile.filePath = profile.data.UserInfo.User.UniqueID + "_large.jpg"
+		if photoURL == "" {
+			photoURL = profile.dataV2.UserModule.Users.User.AvatarLarger
+			profile.filePath = profile.dataV2.UserModule.Users.User.UniqueID + "_larger.jpg"
+		}
 	}
 	profile.filePath = path.Join(profile.BaseDIR, profile.filePath)
 	parsedURL, err := url.Parse(photoURL)
