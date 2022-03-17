@@ -62,12 +62,6 @@ type ProfileData struct {
 	} `json:"metaParams"`
 }
 
-type VideoData struct {
-	Props struct {
-		ProfileData `json:"pageProps"`
-	} `json:"props"`
-}
-
 type UserModule struct {
 	Users struct {
 		User struct {
@@ -118,6 +112,12 @@ type SEO struct {
 	} `json:"metaParams"`
 	JsonldList [][]interface{} `json:"jsonldList"`
 	PageType   int             `json:"pageType"`
+}
+
+type VideoData struct {
+	Props struct {
+		ProfileData `json:"pageProps"`
+	} `json:"props"`
 }
 
 type VideoDataV2 struct {
@@ -243,22 +243,14 @@ type ProfileDataV2 struct {
 	UserModule `json:"UserModule"`
 }
 
-type Profile struct {
+type Base struct {
 	URL        string
 	filePath   string
-	data       ProfileData
-	dataV2     ProfileDataV2
+	data       interface{}
 	httpClient *http.Client
 	Proxy      string
 	BaseDIR    string
 }
+type Profile Base
 
-type Video struct {
-	URL        string
-	filePath   string
-	data       VideoData
-	dataV2     VideoDataV2
-	httpClient *http.Client
-	Proxy      string
-	BaseDIR    string
-}
+type Video Base

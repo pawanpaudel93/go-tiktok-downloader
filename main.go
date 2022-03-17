@@ -27,6 +27,14 @@ func main() {
 		logError(err)
 	}
 
+	if info, err := video.GetInfo(); err == nil {
+		fmt.Println("Video Info:", info)
+	} else {
+		logError(err)
+	}
+
+	fmt.Println("------------------------------------------------------")
+
 	profile := tiktok.Profile{URL: "https://www.tiktok.com/@berywambeatbox", BaseDIR: baseDIR}
 	err = profile.FetchInfo()
 	if err == nil {
@@ -36,6 +44,17 @@ func main() {
 		} else {
 			logError(err)
 		}
+	} else {
+		logError(err)
+	}
+	if ppInfo, err := profile.GetPPInfo(); err == nil {
+		fmt.Println("Profile Info:", ppInfo)
+	} else {
+		logError(err)
+	}
+
+	if pInfo, err := profile.GetProfileInfo(); err == nil {
+		fmt.Println("Profile Info:", pInfo)
 	} else {
 		logError(err)
 	}
